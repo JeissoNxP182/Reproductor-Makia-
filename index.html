@@ -101,7 +101,8 @@
 <body>
 
   <div class="container">
-    <video id="videoPlayer" controls autoplay playsinline></video>
+    <!-- Se removió el autoplay -->
+    <video id="videoPlayer" controls playsinline></video>
     
     <div class="controls-bar">
       <div class="status" id="statusText">Cargando video...</div>
@@ -129,6 +130,22 @@
     const qualitySelect = document.getElementById('qualitySelect');
     const downloadBtn = document.getElementById('downloadBtn');
 
+    // Función de Doble Clic / Doble Tap para saltar 10 segundos
+    videoElement.addEventListener('dblclick', function(e) {
+      const rect = videoElement.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const width = rect.width;
+
+      // Doble clic en el 35% izquierdo -> Retrocede 10s
+      if (clickX < width * 0.35) {
+        videoElement.currentTime = Math.max(0, videoElement.currentTime - 10);
+      } 
+      // Doble clic en el 35% derecho -> Adelanta 10s
+      else if (clickX > width * 0.65) {
+        videoElement.currentTime = Math.min(videoElement.duration, videoElement.currentTime + 10);
+      }
+    });
+
     if (videoUrl) {
       // Configurar Botón de Descarga
       downloadBtn.href = videoUrl;
@@ -141,7 +158,7 @@
         hls.attachMedia(videoElement);
 
         hls.on(Hls.Events.MANIFEST_PARSED, function (event, data) {
-          statusText.innerText = "Reproduciendo HLS";
+          statusText.innerText = "Listo para reproducir";
           
           // Si el archivo .m3u8 trae varios niveles de calidad (720p, 1080p, etc.)
           if (data.levels.length > 1) {
@@ -170,7 +187,7 @@
       // 2. Archivos directos (TapeContent, MP4, etc.)
       else {
         videoElement.src = videoUrl;
-        statusText.innerText = "Reproduciendo archivo directo";
+        statusText.innerText = "Listo para reproducir";
         // Si el navegador soporta el selector nativo en video
         if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
           videoElement.src = videoUrl;

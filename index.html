@@ -2,366 +2,134 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Reproductor de Video HD</title>
-  <!-- HLS.js CDN -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Mi Reproductor Streaming</title>
+  <!-- HLS.js para soportar enlaces .m3u8 -->
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <style>
     * {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
-      font-family: Arial, sans-serif;
+      font-family: system-ui, -apple-system, sans-serif;
     }
 
     body {
-      background-color: #0f0f0f;
-      color: #fff;
+      background-color: #121212;
+      color: #ffffff;
+      padding: 15px;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       min-height: 100vh;
-      padding: 20px;
     }
 
     .container {
       width: 100%;
-      max-width: 900px;
+      max-width: 600px;
     }
 
-    .url-input-container {
+    /* Formulario para ingresar la URL */
+    .input-group {
       display: flex;
+      flex-direction: column;
       gap: 10px;
       margin-bottom: 15px;
     }
 
-    .url-input-container input {
-      flex: 1;
-      padding: 10px 15px;
-      border-radius: 6px;
+    input[type="url"] {
+      width: 100%;
+      padding: 12px;
+      border-radius: 8px;
       border: 1px solid #333;
-      background: #1e1e1e;
+      background-color: #1e1e1e;
       color: #fff;
+      font-size: 14px;
       outline: none;
     }
 
-    .url-input-container button {
-      padding: 10px 20px;
+    button.btn-load {
+      width: 100%;
+      padding: 12px;
       border: none;
-      border-radius: 6px;
-      background: #e50914;
+      border-radius: 8px;
+      background-color: #e50914;
       color: #fff;
       font-weight: bold;
+      font-size: 15px;
       cursor: pointer;
-      transition: background 0.2s;
     }
 
-    .url-input-container button:hover {
-      background: #b20710;
+    button.btn-load:active {
+      background-color: #b20710;
     }
 
+    /* Reproductor nativo adaptable */
     .player-wrapper {
-      position: relative;
       width: 100%;
       background: #000;
-      border-radius: 8px;
+      border-radius: 12px;
       overflow: hidden;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6);
     }
 
     video {
       width: 100%;
       height: auto;
+      max-height: 70vh;
       display: block;
-    }
-
-    /* Gestos de doble clic */
-    .touch-overlay {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: calc(100% - 50px);
-      display: flex;
-      z-index: 2;
-    }
-
-    .touch-zone {
-      flex: 1;
-      height: 100%;
-      position: relative;
-    }
-
-    .seek-feedback {
-      position: absolute;
-      top: 50%;
-      transform: translateY(-50%);
-      background: rgba(0, 0, 0, 0.7);
-      color: #fff;
-      padding: 12px 20px;
-      border-radius: 50px;
-      font-size: 14px;
-      font-weight: bold;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.3s ease;
-    }
-
-    .seek-feedback.left { left: 20px; }
-    .seek-feedback.right { right: 20px; }
-    .seek-feedback.show { opacity: 1; }
-
-    /* Barra de controles */
-    .controls {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background: linear-gradient(transparent, rgba(0, 0, 0, 0.9));
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 10px 15px;
-      z-index: 10;
-      gap: 10px;
-    }
-
-    .controls-left, .controls-right {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .btn {
-      background: none;
-      border: none;
-      color: #fff;
-      cursor: pointer;
-      font-size: 16px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      opacity: 0.85;
-      transition: opacity 0.2s;
-    }
-
-    .btn:hover { opacity: 1; }
-
-    select {
-      background: #1f1f1f;
-      color: #fff;
-      border: 1px solid #444;
-      border-radius: 4px;
-      padding: 4px 8px;
-      font-size: 12px;
-      cursor: pointer;
-      outline: none;
-    }
-
-    input[type="range"] {
-      width: 70px;
-      cursor: pointer;
     }
   </style>
 </head>
 <body>
 
   <div class="container">
-    <!-- Entrada manual para probar enlaces -->
-    <div class="url-input-container">
-      <input type="text" id="streamUrl" placeholder="Pega tu enlace MP4 o M3U8 aquí...">
-      <button id="loadBtn">Cargar Video</button>
+    <!-- Entrada de URL optimizada para teclado táctil -->
+    <div class="input-group">
+      <input type="url" id="streamUrl" placeholder="Pega el enlace MP4 o M3U8..." autocomplete="off">
+      <button class="btn-load" id="loadBtn">Cargar Video</button>
     </div>
 
-    <!-- Contenedor del Reproductor -->
-    <div class="player-wrapper" id="playerContainer">
-      
-      <!-- Video (autoplay deshabilitado por defecto) -->
-      <video id="video" preload="metadata"></video>
-
-      <!-- Capa invisible para detectar el doble clic derecho e izquierdo -->
-      <div class="touch-overlay">
-        <div class="touch-zone" id="zoneLeft">
-          <div class="seek-feedback left" id="feedbackLeft">⏮ -5s</div>
-        </div>
-        <div class="touch-zone" id="zoneRight">
-          <div class="seek-feedback right" id="feedbackRight">+5s ⏭</div>
-        </div>
-      </div>
-
-      <!-- Controles personalizables -->
-      <div class="controls">
-        <div class="controls-left">
-          <button class="btn" id="playBtn">▶</button>
-          
-          <!-- Control de Volumen -->
-          <button class="btn" id="muteBtn">🔊</button>
-          <input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="1">
-        </div>
-
-        <div class="controls-right">
-          <!-- Tuerca / Selección de Calidad (para HLS .m3u8) -->
-          <span title="Calidad">⚙️</span>
-          <select id="qualitySelect">
-            <option value="-1">Auto</option>
-          </select>
-
-          <!-- Control de Velocidad -->
-          <select id="speedSelect" title="Velocidad">
-            <option value="0.5">0.5x</option>
-            <option value="1" selected>1.0x</option>
-            <option value="1.25">1.25x</option>
-            <option value="1.5">1.5x</option>
-            <option value="2">2.0x</option>
-          </select>
-
-          <!-- Picture in Picture (PiP) -->
-          <button class="btn" id="pipBtn" title="Pantalla en pantalla">🖼️</button>
-
-          <!-- Pantalla completa -->
-          <button class="btn" id="fullscreenBtn" title="Pantalla completa">⛶</button>
-        </div>
-      </div>
-
+    <!-- Contenedor del reproductor -->
+    <div class="player-wrapper">
+      <video id="video" controls playsinline preload="metadata"></video>
     </div>
   </div>
 
   <script>
     const video = document.getElementById('video');
-    const playBtn = document.getElementById('playBtn');
-    const muteBtn = document.getElementById('muteBtn');
-    const volumeSlider = document.getElementById('volumeSlider');
-    const qualitySelect = document.getElementById('qualitySelect');
-    const speedSelect = document.getElementById('speedSelect');
-    const pipBtn = document.getElementById('pipBtn');
-    const fullscreenBtn = document.getElementById('fullscreenBtn');
-    const playerContainer = document.getElementById('playerContainer');
     const loadBtn = document.getElementById('loadBtn');
     const streamUrlInput = document.getElementById('streamUrl');
 
-    const zoneLeft = document.getElementById('zoneLeft');
-    const zoneRight = document.getElementById('zoneRight');
-    const feedbackLeft = document.getElementById('feedbackLeft');
-    const feedbackRight = document.getElementById('feedbackRight');
-
     let hls = null;
 
-    // --- Cargar Fuentes (MP4 o M3U8) ---
-    function loadSource(url) {
+    function cargarVideo() {
+      const url = streamUrlInput.value.trim();
       if (!url) return;
 
+      // Limpiar instancia previa de HLS si existe
       if (hls) {
         hls.destroy();
       }
 
-      // Resetear opciones de calidad
-      qualitySelect.innerHTML = '<option value="-1">Auto</option>';
-
-      // Si es un stream M3U8
+      // 1. Compatibilidad con M3U8 mediante HLS.js
       if (url.includes('.m3u8') && Hls.isSupported()) {
         hls = new Hls();
         hls.loadSource(url);
         hls.attachMedia(video);
-
-        hls.on(Hls.Events.MANIFEST_PARSED, function () {
-          // Detectar calidades disponibles
-          hls.levels.forEach((level, index) => {
-            const option = document.createElement('option');
-            option.value = index;
-            option.text = level.height ? `${level.height}p` : `Nivel ${index}`;
-            qualitySelect.appendChild(option);
-          });
-        });
       } 
-      // Si el navegador soporta M3U8 de forma nativa (Ej: Safari) o si es MP4 directo
+      // 2. Soporte nativo de Safari en iOS o archivos MP4 estándar
       else {
         video.src = url;
       }
 
-      // Asegurar que NO se reproduzca automáticamente
+      // Asegurar que NO se reproduzca de forma automática
       video.pause();
-      playBtn.textContent = '▶';
     }
 
-    loadBtn.addEventListener('click', () => loadSource(streamUrlInput.value.trim()));
-
-    // --- Reproducción / Pausa ---
-    playBtn.addEventListener('click', () => {
-      if (video.paused) {
-        video.play();
-        playBtn.textContent = '⏸';
-      } else {
-        video.pause();
-        playBtn.textContent = '▶';
-      }
-    });
-
-    // --- Control de Volumen ---
-    volumeSlider.addEventListener('input', (e) => {
-      video.volume = e.target.value;
-      video.muted = e.target.value === '0';
-      muteBtn.textContent = video.muted ? '🔇' : '🔊';
-    });
-
-    muteBtn.addEventListener('click', () => {
-      video.muted = !video.muted;
-      muteBtn.textContent = video.muted ? '🔇' : '🔊';
-      if (!video.muted && video.volume === 0) {
-        video.volume = 0.5;
-        volumeSlider.value = 0.5;
-      }
-    });
-
-    // --- Cambiar Calidad ---
-    qualitySelect.addEventListener('change', (e) => {
-      if (hls) {
-        hls.currentLevel = parseInt(e.target.value);
-      }
-    });
-
-    // --- Cambiar Velocidad ---
-    speedSelect.addEventListener('change', (e) => {
-      video.playbackRate = parseFloat(e.target.value);
-    });
-
-    // --- Doble Clic para Adelantar / Atrasar 5 Segundos ---
-    function triggerFeedback(element) {
-      element.classList.add('show');
-      setTimeout(() => element.classList.remove('show'), 600);
-    }
-
-    zoneLeft.addEventListener('dblclick', () => {
-      video.currentTime = Math.max(0, video.currentTime - 5);
-      triggerFeedback(feedbackLeft);
-    });
-
-    zoneRight.addEventListener('dblclick', () => {
-      video.currentTime = Math.min(video.duration, video.currentTime + 5);
-      triggerFeedback(feedbackRight);
-    });
-
-    // --- Pantalla en Pantalla (PiP) ---
-    pipBtn.addEventListener('click', async () => {
-      try {
-        if (document.pictureInPictureElement) {
-          await document.exitPictureInPicture();
-        } else if (document.pictureInPictureEnabled) {
-          await video.requestPictureInPicture();
-        }
-      } catch (error) {
-        console.error("Error al activar PiP:", error);
-      }
-    });
-
-    // --- Pantalla Completa ---
-    fullscreenBtn.addEventListener('click', () => {
-      if (!document.fullscreenElement) {
-        playerContainer.requestFullscreen().catch(err => console.error(err));
-      } else {
-        document.exitFullscreen();
-      }
-    });
+    loadBtn.addEventListener('click', cargarVideo);
   </script>
+
 </body>
 </html>

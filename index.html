@@ -3,96 +3,146 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Mi Reproductor Streaming</title>
-  <!-- HLS.js para soportar enlaces .m3u8 -->
+  <title>Streaming Player</title>
+  <!-- HLS.js para enlaces .m3u8 -->
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <style>
     * {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
-      font-family: system-ui, -apple-system, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
 
     body {
-      background-color: #121212;
-      color: #ffffff;
-      padding: 15px;
+      background-color: #0b0b0f;
+      color: #e1e1e6;
+      padding: 20px 15px;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
       min-height: 100vh;
+    }
+
+    .app-header {
+      width: 100%;
+      max-width: 650px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .app-header h1 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #e50914; /* Rojo streaming */
+      letter-spacing: 0.5px;
     }
 
     .container {
       width: 100%;
-      max-width: 600px;
+      max-width: 650px;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
     }
 
-    /* Formulario para ingresar la URL */
-    .input-group {
+    /* Caja de entrada estilo moderno */
+    .stream-input-card {
+      background: #14141d;
+      border: 1px solid #232330;
+      border-radius: 12px;
+      padding: 12px;
       display: flex;
       flex-direction: column;
       gap: 10px;
-      margin-bottom: 15px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    }
+
+    .input-wrapper {
+      position: relative;
+      width: 100%;
     }
 
     input[type="url"] {
       width: 100%;
-      padding: 12px;
+      padding: 14px 14px;
       border-radius: 8px;
-      border: 1px solid #333;
-      background-color: #1e1e1e;
+      border: 1px solid #2a2a3c;
+      background-color: #0b0b0f;
       color: #fff;
       font-size: 14px;
       outline: none;
+      transition: border-color 0.2s;
     }
 
-    button.btn-load {
+    input[type="url"]:focus {
+      border-color: #e50914;
+    }
+
+    .btn-play {
       width: 100%;
-      padding: 12px;
+      padding: 14px;
       border: none;
       border-radius: 8px;
-      background-color: #e50914;
-      color: #fff;
-      font-weight: bold;
+      background: #e50914;
+      color: #ffffff;
+      font-weight: 600;
       font-size: 15px;
       cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background 0.2s, transform 0.1s;
     }
 
-    button.btn-load:active {
-      background-color: #b20710;
+    .btn-play:active {
+      background: #b20710;
+      transform: scale(0.98);
     }
 
-    /* Reproductor nativo adaptable */
-    .player-wrapper {
+    /* Marco del Reproductor */
+    .player-card {
       width: 100%;
-      background: #000;
-      border-radius: 12px;
+      background: #000000;
+      border-radius: 14px;
       overflow: hidden;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6);
+      border: 1px solid #232330;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.7);
+      aspect-ratio: 16 / 9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     video {
       width: 100%;
-      height: auto;
-      max-height: 70vh;
-      display: block;
+      height: 100%;
+      object-fit: contain;
     }
   </style>
 </head>
 <body>
 
+  <div class="app-header">
+    <h1>STREAMFLIX</h1>
+  </div>
+
   <div class="container">
-    <!-- Entrada de URL optimizada para teclado táctil -->
-    <div class="input-group">
-      <input type="url" id="streamUrl" placeholder="Pega el enlace MP4 o M3U8..." autocomplete="off">
-      <button class="btn-load" id="loadBtn">Cargar Video</button>
+    <!-- Panel de carga de enlace -->
+    <div class="stream-input-card">
+      <div class="input-wrapper">
+        <input type="url" id="streamUrl" placeholder="Pega la URL de tu transmisión (.m3u8 o .mp4)" autocomplete="off">
+      </div>
+      <button class="btn-play" id="loadBtn">
+        <span>▶</span> Reproducir contenido
+      </button>
     </div>
 
-    <!-- Contenedor del reproductor -->
-    <div class="player-wrapper">
+    <!-- Pantalla de video -->
+    <div class="player-card">
       <video id="video" controls playsinline preload="metadata"></video>
     </div>
   </div>
@@ -104,31 +154,30 @@
 
     let hls = null;
 
-    function cargarVideo() {
+    function reproducirStream() {
       const url = streamUrlInput.value.trim();
       if (!url) return;
 
-      // Limpiar instancia previa de HLS si existe
       if (hls) {
         hls.destroy();
       }
 
-      // 1. Compatibilidad con M3U8 mediante HLS.js
+      // Reproducción HLS (.m3u8)
       if (url.includes('.m3u8') && Hls.isSupported()) {
         hls = new Hls();
         hls.loadSource(url);
         hls.attachMedia(video);
       } 
-      // 2. Soporte nativo de Safari en iOS o archivos MP4 estándar
+      // Reproducción direct MP4 / Safari nativo
       else {
         video.src = url;
       }
 
-      // Asegurar que NO se reproduzca de forma automática
+      // No auto-reproduce, espera la acción del usuario
       video.pause();
     }
 
-    loadBtn.addEventListener('click', cargarVideo);
+    loadBtn.addEventListener('click', reproducirStream);
   </script>
 
 </body>

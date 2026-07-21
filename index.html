@@ -4,12 +4,19 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Reproductor Makia</title>
-  <!-- Cargamos HLS.js para la reproducción y calidad -->
+  
+  <!-- Estilos de Plyr (Reproductor Profesional) -->
+  <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
+  
+  <!-- Librería HLS.js para transmisión de calidad -->
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <!-- Reproductor Plyr.js -->
+  <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
+
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { 
-      background-color: #0d0d0d; 
+      background-color: #0b0b0c; 
       color: #fff; 
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
       display: flex; 
@@ -19,135 +26,195 @@
       min-height: 100vh; 
       padding: 15px;
     }
-    .container { 
+    
+    .player-card { 
       width: 100%; 
       max-width: 1000px; 
-      background: #181818;
-      border-radius: 12px;
+      background: #141416;
+      border-radius: 14px;
       overflow: hidden;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+      box-shadow: 0 15px 35px rgba(0,0,0,0.8);
+      border: 1px solid #232328;
     }
-    video { 
-      width: 100%; 
-      height: auto; 
-      aspect-ratio: 16/9; 
-      background: #000; 
-      display: block;
-    }
-    
-    /* Panel de Controles Inferiores */
-    .controls-bar {
+
+    /* Header del Reproductor */
+    .player-header {
       display: flex;
-      flex-wrap: wrap;
-      align-items: center;
       justify-content: space-between;
-      padding: 12px 20px;
-      background: #141414;
-      gap: 10px;
-      border-top: 1px solid #282828;
+      align-items: center;
+      padding: 14px 20px;
+      background: #1a1a1e;
+      border-bottom: 1px solid #282830;
     }
-    .status { 
-      font-size: 14px; 
-      color: #aaa; 
-    }
-    .actions {
+
+    .brand-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #e50914;
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 8px;
     }
-    
-    /* Selector de Calidad (Tuerca) */
-    .quality-wrapper {
-      display: flex;
+
+    .download-link {
+      background: #282830;
+      color: #fff;
+      text-decoration: none;
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      display: inline-flex;
       align-items: center;
       gap: 6px;
-      background: #252525;
-      padding: 6px 12px;
-      border-radius: 6px;
-      font-size: 14px;
+      transition: all 0.2s ease;
+      border: 1px solid #3a3a45;
     }
-    .quality-wrapper select {
-      background: transparent;
-      color: #fff;
-      border: none;
-      outline: none;
-      font-size: 14px;
-      cursor: pointer;
+
+    .download-link:hover {
+      background: #e50914;
+      border-color: #e50914;
     }
-    .quality-wrapper option {
-      background: #252525;
-      color: #fff;
+
+    /* Personalización del reproductor Plyr */
+    :root {
+      --plyr-color-main: #e50914; /* Rojo Makia / Netflix */
+      --plyr-video-background: #000;
+      --plyr-menu-background: rgba(20, 20, 22, 0.95);
+      --plyr-menu-color: #fff;
+    }
+
+    .video-wrapper {
+      width: 100%;
+      aspect-ratio: 16/9;
+      background: #000;
+    }
+
+    /* Estado e información inferior */
+    .player-footer {
+      padding: 10px 20px;
+      background: #121214;
+      font-size: 13px;
+      color: #888;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
   </style>
 </head>
 <body>
 
-  <div class="container">
-    <video id="videoPlayer" controls autoplay playsinline></video>
-    
-    <div class="controls-bar">
-      <div class="status" id="statusText">Cargando video...</div>
-      
-      <div class="actions">
-        <!-- Selector de Calidad (Oculto por defecto hasta que se detecten capas .m3u8) -->
-        <div class="quality-wrapper" id="qualityContainer" style="display: none;">
-          ⚙️ <select id="qualitySelect"></select>
-        </div>
+  <div class="player-card">
+    <!-- BARRA SUPERIOR CON LOGO Y BOTÓN DE DESCARGA -->
+    <div class="player-header">
+      <div class="brand-title">
+        🎬 <span>Reproductor Makia</span>
       </div>
+      <a href="#" id="downloadBtn" class="download-link" target="_blank" style="display: none;">
+        ⬇️ Descargar Película
+      </a>
+    </div>
+
+    <!-- REPRODUCTOR DE VIDEO -->
+    <div class="video-wrapper">
+      <video id="player" controls playsinline></video>
+    </div>
+
+    <!-- BARRA DE ESTADO INFERIOR -->
+    <div class="player-footer">
+      <span id="statusText">Cargando transmisión...</span>
+      <span>Makia HD</span>
     </div>
   </div>
 
   <script>
     const urlParams = new URLSearchParams(window.location.search);
     const videoUrl = urlParams.get('v') || urlParams.get('url');
-    const videoElement = document.getElementById('videoPlayer');
+    const videoElement = document.getElementById('player');
     const statusText = document.getElementById('statusText');
-    const qualityContainer = document.getElementById('qualityContainer');
-    const qualitySelect = document.getElementById('qualitySelect');
+    const downloadBtn = document.getElementById('downloadBtn');
+
+    // Configuración completa de controles para Plyr
+    const defaultControls = [
+      'play-large',      // Botón gigante de Play al centro
+      'restart',         // Reiniciar video
+      'rewind',          // Retroceder 10s
+      'play',            // Play/Pausa
+      'fast-forward',    // Adelantar 10s
+      'progress',        // Barra de tiempo
+      'current-time',    // Tiempo actual
+      'duration',        // Duración total
+      'mute',            // Botón de volumen
+      'volume',          // Barra deslizante de volumen
+      'settings',        // Menú con Tuerca (Calidad y Velocidad)
+      'pip',             // Modo Imagen en Imagen (PiP)
+      'airplay',         // Transmitir a Apple TV / AirPlay
+      'fullscreen'       // Pantalla Completa
+    ];
 
     if (videoUrl) {
-      // 1. Transmisión HLS (.m3u8) con selector de calidad
+      // Configurar enlace de descarga directa
+      downloadBtn.href = videoUrl;
+      downloadBtn.style.display = 'inline-flex';
+
+      // 1. TRANSMISIÓN HLS (.m3u8) CON CALIDADES
       if (videoUrl.includes('.m3u8') && Hls.isSupported()) {
         const hls = new Hls();
         hls.loadSource(videoUrl);
         hls.attachMedia(videoElement);
 
-        hls.on(Hls.Events.MANIFEST_PARSED, function (event, data) {
-          statusText.innerText = "Reproduciendo HLS";
+        hls.on(Hls.Events.MANIFEST_PARSED, function () {
+          statusText.innerText = "Modo: Transmisión HLS Adaptativa";
           
-          if (data.levels.length > 1) {
-            qualityContainer.style.display = 'flex';
-            qualitySelect.innerHTML = '<option value="-1">Auto (Calidad adaptativa)</option>';
+          // Detectar resoluciones disponibles
+          const availableQualities = hls.levels.map((l) => l.height);
+          availableQualities.unshift(0); // 0 representa "Auto"
 
-            data.levels.forEach((level, index) => {
-              const height = level.height || 'SD';
-              const option = document.createElement('option');
-              option.value = index;
-              option.text = height + 'p';
-              qualitySelect.appendChild(option);
-            });
+          // Inicializar el reproductor con las calidades del archivo
+          const player = new Plyr(videoElement, {
+            controls: defaultControls,
+            quality: {
+              default: 0,
+              options: availableQualities,
+              forced: true,
+              onChange: (e) => updateQuality(e),
+            },
+            i18n: {
+              qualityLabel: 'Calidad',
+              speed: 'Velocidad',
+              qualityBadge: { 0: 'Auto' }
+            },
+            speed: { selected: 1, options: [0.5, 0.75, 1, 1.25, 1.5, 2] }
+          });
 
-            qualitySelect.addEventListener('change', function () {
-              hls.currentLevel = parseInt(this.value);
-              if (this.value == "-1") {
-                statusText.innerText = "Calidad: Automática";
-              } else {
-                statusText.innerText = "Calidad forzada: " + qualitySelect.options[qualitySelect.selectedIndex].text;
-              }
-            });
+          function updateQuality(newQuality) {
+            if (newQuality === 0) {
+              hls.currentLevel = -1; // Auto
+            } else {
+              hls.levels.forEach((level, levelIndex) => {
+                if (level.height === newQuality) {
+                  hls.currentLevel = levelIndex;
+                }
+              });
+            }
           }
         });
       } 
-      // 2. Archivos directos (TapeContent, MP4, etc.)
+      // 2. ARCHIVOS DIRECTOS (MP4, Streamtape, etc.)
       else {
         videoElement.src = videoUrl;
-        statusText.innerText = "Reproduciendo archivo directo";
-        if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
-          videoElement.src = videoUrl;
-        }
+        statusText.innerText = "Modo: Reproducción Directa";
+
+        const player = new Plyr(videoElement, {
+          controls: defaultControls,
+          speed: { selected: 1, options: [0.5, 0.75, 1, 1.25, 1.5, 2] },
+          i18n: {
+            speed: 'Velocidad'
+          }
+        });
       }
     } else {
-      statusText.innerText = "Error: No se ha ingresado ningún enlace de video.";
+      statusText.innerText = "Error: No se ha encontrado ningún enlace de video.";
     }
   </script>
 </body>
